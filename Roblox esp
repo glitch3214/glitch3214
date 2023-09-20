@@ -1,0 +1,77 @@
+-- Define your highlightColor here
+local highlightColor = Color3.new(1, 0, 0)  
+local nametagColor = Color3.new(1, 0, 0)  
+
+local function createPlayerHighlight(player)
+    local character = player.Character
+    if character then
+        local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+        if torso then
+            local highlight = Instance.new("Part")
+            highlight.Name = "PlayerHighlight"
+            highlight.Anchored = true
+            highlight.CanCollide = false
+            highlight.Size = torso.Size
+            highlight.Transparency = 0.5
+            highlight.BrickColor = BrickColor.new(highlightColor)
+            highlight.Parent = torso
+
+            highlight.CFrame = torso.CFrame  
+            highlight.Anchored = false  
+
+            local billboardGui = Instance.new("BillboardGui")
+            billboardGui.Name = "PlayerLabel"
+            billboardGui.Size = UDim2.new(0, 100, 0, 20)
+            billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+            billboardGui.AlwaysOnTop = true  
+            billboardGui.Parent = highlight
+
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.Text = player.Name
+            textLabel.TextColor3 = nametagColor  
+            textLabel.BackgroundTransparency = 1
+            textLabel.Parent = billboardGui
+
+            game:GetService("RunService").RenderStepped:Connect(function()
+                if torso and torso.Parent and torso.Parent:FindFirstChild("Humanoid") then
+                    local humanoid = torso.Parent:FindFirstChild("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        highlight.Size = torso.Size
+                        highlight.CFrame = torso.CFrame  
+                    else
+                        highlight:Destroy()
+                    end
+                else
+                    highlight:Destroy()
+                end
+            end)
+        end
+    end
+end
+
+local function removePlayerHighlight(player)
+    local character = player.Character
+    if character then
+        local highlight = character:FindFirstChild("PlayerHighlight")
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+end
+
+local function onPlayerAdded(player)
+    createPlayerHighlight(player)
+end
+
+local function onPlayerRemoving(player)
+    removePlayerHighlight(player)
+end
+
+game:GetService("Players").PlayerAdded:Connect(onPlayerAdded)
+game:GetService("Players").PlayerRemoving:Connect(onPlayerRemoving)
+
+-- Initial check for existing players
+for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+    createPlayerHighlight(player)
+end
