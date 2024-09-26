@@ -1,77 +1,219 @@
--- Define your highlightColor here
-local highlightColor = Color3.new(1, 0, 0)  
-local nametagColor = Color3.new(1, 0, 0)  
+local userInput = game:GetService("UserInputService")
+local players = game:GetService("Players")
+local runService = game:GetService("RunService")
 
-local function createPlayerHighlight(player)
+local guiOpen = false
+local isFlying = false
+local speed = 16 -- Default speed
+
+-- Create the ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HighlightGUI"
+screenGui.Parent = players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create the frame that will be the main GUI
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 350) -- Adjusted height
+frame.Position = UDim2.new(0.5, -150, 0.5, -175) -- Centered vertically
+frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+frame.Visible = false -- Hidden by default
+frame.Parent = screenGui
+
+-- Create the instruction label
+local instructionLabel = Instance.new("TextLabel")
+instructionLabel.Size = UDim2.new(1, 0, 0, 50)
+instructionLabel.Position = UDim2.new(0, 0, 0, 0)
+instructionLabel.Text = "Press Right Alt to open/close the GUI"
+instructionLabel.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+instructionLabel.TextColor3 = Color3.new(1, 1, 1)
+instructionLabel.Font = Enum.Font.SourceSansBold
+instructionLabel.TextScaled = true
+instructionLabel.Parent = frame
+
+-- Create the button to activate highlighting
+local highlightButton = Instance.new("TextButton")
+highlightButton.Size = UDim2.new(0, 200, 0, 50)
+highlightButton.Position = UDim2.new(0.5, -100, 0, 60)
+highlightButton.Text = "Activate Highlighting"
+highlightButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.8)
+highlightButton.TextColor3 = Color3.new(1, 1, 1)
+highlightButton.Font = Enum.Font.SourceSansBold
+highlightButton.TextScaled = true
+highlightButton.Parent = frame
+
+-- Create the TextBox for speed input
+local speedInput = Instance.new("TextBox")
+speedInput.Size = UDim2.new(0, 200, 0, 50)
+speedInput.Position = UDim2.new(0.5, -100, 0, 120)
+speedInput.PlaceholderText = "Enter Speed"
+speedInput.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+speedInput.TextColor3 = Color3.new(1, 1, 1)
+speedInput.Font = Enum.Font.SourceSans
+speedInput.TextScaled = true
+speedInput.Parent = frame
+
+-- Create the button to set the speed
+local setSpeedButton = Instance.new("TextButton")
+setSpeedButton.Size = UDim2.new(0, 200, 0, 50)
+setSpeedButton.Position = UDim2.new(0.5, -100, 0, 180)
+setSpeedButton.Text = "Set Speed"
+setSpeedButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.2)
+setSpeedButton.TextColor3 = Color3.new(1, 1, 1)
+setSpeedButton.Font = Enum.Font.SourceSansBold
+setSpeedButton.TextScaled = true
+setSpeedButton.Parent = frame
+
+-- Create the button to toggle flying
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0, 200, 0, 50)
+flyButton.Position = UDim2.new(0.5, -100, 0, 240)
+flyButton.Text = "Toggle Fly"
+flyButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+flyButton.TextColor3 = Color3.new(1, 1, 1)
+flyButton.Font = Enum.Font.SourceSansBold
+flyButton.TextScaled = true
+flyButton.Parent = frame
+
+local function setSpeed()
+    local player = players.LocalPlayer
+    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+    
+    if humanoid then
+        local newSpeed = tonumber(speedInput.Text) -- Get the input value
+        if newSpeed and newSpeed > 0 then -- Check if it's a valid positive number
+            humanoid.WalkSpeed = newSpeed -- Set new speed
+        else
+            print("Invalid speed input. Please enter a positive number.") -- Error message
+        end
+    end
+end
+
+local highlightLabels = {} -- Table to store username labels
+
+-- Function to activate the highlighting
+local function highlightPlayer(player)
+    if player.Character then
+        local char = player.Character
+
+        -- Check if there's an existing highlight and remove it first to avoid duplicates
+        if char:FindFirstChild("Highlight") then
+            char.Highlight:Destroy()
+        end
+
+        -- Create a Highlight for the player's character
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = char
+
+        -- Set the color based on the player's team
+        if player.Team then
+            highlight.FillColor = player.Team.TeamColor.Color
+        else
+            highlight.FillColor = Color3.new(1, 1, 1) -- Default to white if no team
+        end
+
+        highlight.OutlineTransparency = 0 -- Outline is fully visible
+        highlight.FillTransparency = 0.5 -- Adjust for visibility of the highlight
+        highlight.Parent = char
+
+        -- Create a label for the player's username
+        local usernameLabel = Instance.new("TextLabel")
+        usernameLabel.Size = UDim2.new(0, 100, 0, 50)
+        usernameLabel.Position = UDim2.new(0, 0, 0, -50) -- Position above the player's head
+        usernameLabel.Text = player.Name
+        usernameLabel.BackgroundTransparency = 1
+        usernameLabel.TextColor3 = Color3.new(1, 1, 1)
+        usernameLabel.Font = Enum.Font.SourceSans
+        usernameLabel.TextScaled = true
+        usernameLabel.Parent = char
+
+        -- Store the label for later removal
+        highlightLabels[player] = usernameLabel
+    end
+end
+
+local function refreshHighlights()
+    -- Apply highlight to all players currently in the game
+    for _, player in pairs(players:GetPlayers()) do
+        if player.Character then
+            highlightPlayer(player)
+        end
+    end
+end
+
+-- Button click to activate highlighting
+highlightButton.MouseButton1Click:Connect(function()
+    refreshHighlights()
+
+    -- Show or hide username labels
+    for _, player in pairs(players:GetPlayers()) do
+        if highlightLabels[player] then
+            highlightLabels[player].Visible = true -- Show username labels
+        end
+    end
+end)
+
+-- Button click to set speed
+setSpeedButton.MouseButton1Click:Connect(function()
+    setSpeed()
+end)
+
+-- Toggle GUI visibility when Right Alt is pressed
+userInput.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightAlt then
+        guiOpen = not guiOpen
+        frame.Visible = guiOpen
+    end
+end)
+
+-- Function to toggle flying
+local function toggleFly()
+    local player = players.LocalPlayer
     local character = player.Character
-    if character then
-        local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
-        if torso then
-            local highlight = Instance.new("Part")
-            highlight.Name = "PlayerHighlight"
-            highlight.Anchored = true
-            highlight.CanCollide = false
-            highlight.Size = torso.Size
-            highlight.Transparency = 0.5
-            highlight.BrickColor = BrickColor.new(highlightColor)
-            highlight.Parent = torso
-
-            highlight.CFrame = torso.CFrame  
-            highlight.Anchored = false  
-
-            local billboardGui = Instance.new("BillboardGui")
-            billboardGui.Name = "PlayerLabel"
-            billboardGui.Size = UDim2.new(0, 100, 0, 20)
-            billboardGui.StudsOffset = Vector3.new(0, 3, 0)
-            billboardGui.AlwaysOnTop = true  
-            billboardGui.Parent = highlight
-
-            local textLabel = Instance.new("TextLabel")
-            textLabel.Size = UDim2.new(1, 0, 1, 0)
-            textLabel.Text = player.Name
-            textLabel.TextColor3 = nametagColor  
-            textLabel.BackgroundTransparency = 1
-            textLabel.Parent = billboardGui
-
-            game:GetService("RunService").RenderStepped:Connect(function()
-                if torso and torso.Parent and torso.Parent:FindFirstChild("Humanoid") then
-                    local humanoid = torso.Parent:FindFirstChild("Humanoid")
-                    if humanoid and humanoid.Health > 0 then
-                        highlight.Size = torso.Size
-                        highlight.CFrame = torso.CFrame  
-                    else
-                        highlight:Destroy()
-                    end
-                else
-                    highlight:Destroy()
+    if not character then return end
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if humanoid then
+        isFlying = not isFlying
+        
+        if isFlying then
+            humanoid.PlatformStand = true -- Prevent falling
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0) -- Start with no velocity
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000) -- Allow for strong forces
+            bodyVelocity.Parent = character.PrimaryPart
+            
+            -- Flying loop
+            runService.RenderStepped:Connect(function()
+                if isFlying and character.PrimaryPart then
+                    local direction = Vector3.new()
+                    if userInput:IsKeyDown(Enum.KeyCode.W) then direction = direction + workspace.CurrentCamera.CFrame.LookVector end
+                    if userInput:IsKeyDown(Enum.KeyCode.S) then direction = direction - workspace.CurrentCamera.CFrame.LookVector end
+                    if userInput:IsKeyDown(Enum.KeyCode.A) then direction = direction - workspace.CurrentCamera.CFrame.RightVector end
+                    if userInput:IsKeyDown(Enum.KeyCode.D) then direction = direction + workspace.CurrentCamera.CFrame.RightVector end
+                    if userInput:IsKeyDown(Enum.KeyCode.Space) then direction = direction + Vector3.new(0, 1, 0) end
+                    if userInput:IsKeyDown(Enum.KeyCode.LeftControl) then direction = direction - Vector3.new(0, 1, 0) end
+                    
+                    bodyVelocity.Velocity = direction.Unit * speed -- Adjust speed
                 end
             end)
+        else
+            humanoid.PlatformStand = false
+            character.PrimaryPart:FindFirstChild("BodyVelocity"):Destroy() -- Remove BodyVelocity
         end
     end
 end
 
-local function removePlayerHighlight(player)
-    local character = player.Character
-    if character then
-        local highlight = character:FindFirstChild("PlayerHighlight")
-        if highlight then
-            highlight:Destroy()
-        end
-    end
-end
+-- Button click to toggle flying
+flyButton.MouseButton1Click:Connect(function()
+    toggleFly()
+end)
 
-local function onPlayerAdded(player)
-    createPlayerHighlight(player)
-end
+-- Refresh highlights for all players when they join
+players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        highlightPlayer(player)
+    end)
+end)
 
-local function onPlayerRemoving(player)
-    removePlayerHighlight(player)
-end
-
-game:GetService("Players").PlayerAdded:Connect(onPlayerAdded)
-game:GetService("Players").PlayerRemoving:Connect(onPlayerRemoving)
-
--- Initial check for existing players
-for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-    createPlayerHighlight(player)
-end
+-- Highlight existing players in the game on script start
+refreshHighlights()
